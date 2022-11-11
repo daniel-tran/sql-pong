@@ -14,9 +14,9 @@ CREATE TABLE IF NOT EXISTS pong.screen (rowNumber, cell1, cell2, cell3, cell4, c
 (9, '', '', '', '', '', '', '', '', '');
 
 DROP TABLE IF EXISTS pong.players;
-CREATE TABLE IF NOT EXISTS pong.players (playerNumber, top, bottom) AS VALUES
-(1, 4, 6),
-(2, 4, 6);
+CREATE TABLE IF NOT EXISTS pong.players (playerNumber, top, bottom, score) AS VALUES
+(1, 4, 6, 0),
+(2, 4, 6, 0);
 
 DROP TABLE IF EXISTS pong.ball;
 CREATE TABLE IF NOT EXISTS pong.ball (x, y, xDirection, yDirection) AS VALUES
