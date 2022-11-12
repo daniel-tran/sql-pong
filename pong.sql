@@ -228,8 +228,19 @@ BEGIN
   RETURN 0;
 END;
 $$ LANGUAGE plpgsql;
--- Ball MUST move before the player, otherwise the paddle can't be drawn when hitting the paddle, since the paddle will draw over the ball's cell
-SELECT pong.movePlayer(2, 1);
-SELECT pong.moveBall();
+
+-- Just a dummy function that moves the players and the ball in a single function call
+CREATE OR REPLACE FUNCTION pong.playGameWithTwoPlayers(player1Movement integer, player2Movement integer) RETURNS integer AS $$
+BEGIN
+  -- Ball MUST move after the player, otherwise the paddle can't be drawn when hitting the paddle, otherwise the paddle will draw over the ball's cell
+  -- This also means players can manage to reach the ball just as it's about to hit the score zone
+  PERFORM pong.movePlayer(1, player1Movement);
+  PERFORM pong.movePlayer(2, player2Movement);
+  PERFORM pong.moveBall();
+  RETURN 0;
+END;
+$$ LANGUAGE plpgsql;
+
+SELECT pong.playGameWithTwoPlayers(0, 0);
 -- ORDER BY is necessary, since UPDATE won't preserve the original row order by default
 SELECT * from pong.screen ORDER BY rowNumber ASC;
