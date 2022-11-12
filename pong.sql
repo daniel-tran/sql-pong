@@ -114,6 +114,7 @@ CREATE OR REPLACE FUNCTION pong.moveBall() RETURNS integer AS $$
   DECLARE top2 integer;
   DECLARE bottom2 integer;
   DECLARE whichPlayerHasScored integer;
+  DECLARE shouldAdjustBallSkewOnHit boolean;
 BEGIN
   SELECT 9 INTO screenWidth;
   SELECT COUNT(*) INTO screenHeight FROM pong.screen;
@@ -132,11 +133,6 @@ BEGIN
   -- Register the score
   UPDATE pong.players SET (score) = (SELECT score + 1) WHERE playernumber = whichPlayerHasScored;
   
-  -- Change the ball's movement pattern when it's reset
-  PERFORM CASE
-    WHEN whichPlayerHasScored > 0 THEN pong.setDirectionalSkewOnBall()
-  END;
-
   -- Keep the ball within the boundaries of the screen
   SELECT CASE
     -- Reset the X coordinate if the P1 paddle missed the hit
@@ -158,6 +154,12 @@ BEGIN
 	ELSE yDirection
   END INTO yDirectionNew FROM pong.ball;
   
+  -- Change the ball's movement pattern when it's reset or bouncing off a paddle
+  SELECT FLOOR(RANDOM() * 2) <= 0.9 INTO shouldAdjustBallSkewOnHit;
+  PERFORM CASE
+    WHEN (whichPlayerHasScored > 0) OR (xDirection != xDirectionNew AND shouldAdjustBallSkewOnHit) THEN pong.setDirectionalSkewOnBall()
+  END FROM pong.ball;
+
   SELECT y INTO rowWithBall FROM pong.ball;
   
   -- Find the row with the ball and blindly remove it from all fields, since Postgres can't access fields by column number
