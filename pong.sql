@@ -100,6 +100,12 @@ $$ LANGUAGE plpgsql;
 SELECT pong.setDirectionalSkewOnBall();
 --SELECT * FROM pong.ball;
 
+-- Just a dummy function that should decide whether the ball's movement changes on hit
+CREATE OR REPLACE FUNCTION pong.shouldAdjustBallSkewOnHit() RETURNS boolean AS $$
+BEGIN
+  RETURN FLOOR(RANDOM() * 2) <= 0.9;
+END;
+$$ LANGUAGE plpgsql;
 
 -- Just a dummy function that should eventually update the player's location
 CREATE OR REPLACE FUNCTION pong.movePlayer(playerToMove integer, actionValue integer) RETURNS integer AS $$
@@ -161,7 +167,6 @@ CREATE OR REPLACE FUNCTION pong.moveBall() RETURNS integer AS $$
   DECLARE top2 integer;
   DECLARE bottom2 integer;
   DECLARE whichPlayerHasScored integer;
-  DECLARE shouldAdjustBallSkewOnHit boolean;
 BEGIN
   SELECT 9 INTO screenWidth;
   SELECT COUNT(*) INTO screenHeight FROM pong.screen;
@@ -200,9 +205,8 @@ BEGIN
   END INTO yDirectionNew FROM pong.ball;
   
   -- Change the ball's movement pattern when it's reset or bouncing off a paddle
-  SELECT FLOOR(RANDOM() * 2) <= 0.9 INTO shouldAdjustBallSkewOnHit;
   PERFORM CASE
-    WHEN (whichPlayerHasScored > 0) OR (xDirection != xDirectionNew AND shouldAdjustBallSkewOnHit) THEN pong.setDirectionalSkewOnBall()
+    WHEN (whichPlayerHasScored > 0) OR (xDirection != xDirectionNew AND pong.shouldAdjustBallSkewOnHit()) THEN pong.setDirectionalSkewOnBall()
   END FROM pong.ball;
 
   SELECT y INTO rowWithBall FROM pong.ball;
