@@ -2,16 +2,20 @@
 CREATE SCHEMA IF NOT EXISTS pong;
 
 DROP TABLE IF EXISTS pong.screen;
+-- Each cell is 2 characters wide to account for the ball and paddle occupying the same cell on a collision.
+-- By keeping the length of each cell consistent at all times, the table output looks more presentable when viewed using psql.
+-- The convention is that any paddle cell is aligned to its respective side, and any other cell that has to
+-- render a single character is left-aligned.
 CREATE TABLE IF NOT EXISTS pong.screen (rowNumber, cell1, cell2, cell3, cell4, cell5, cell6, cell7, cell8, cell9) AS VALUES
-(1, '', '', '', '', '', '', '', '', ''),
-(2, '', '', '', '', '', '', '', '', ''),
-(3, '', '', '', '', '', '', '', '', ''),
-(4, '#', '', '', '', '', '', '', '', '#'),
-(5, '#', '', '', '', '@', '', '', '', '#'),
-(6, '#', '', '', '', '', '', '', '', '#'),
-(7, '', '', '', '', '', '', '', '', ''),
-(8, '', '', '', '', '', '', '', '', ''),
-(9, '', '', '', '', '', '', '', '', '');
+(1, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  '),
+(2, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  '),
+(3, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  '),
+(4, '# ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', ' #'),
+(5, '# ', '  ', '  ', '  ', '@ ', '  ', '  ', '  ', ' #'),
+(6, '# ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', ' #'),
+(7, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  '),
+(8, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  '),
+(9, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ');
 
 DROP TABLE IF EXISTS pong.players;
 CREATE TABLE IF NOT EXISTS pong.players (playerNumber, top, bottom, score) AS VALUES
@@ -79,17 +83,17 @@ BEGIN
   
   -- Wipe out the paddle and redraw it again at its new coordinates
   UPDATE pong.screen SET (cell1) = (
-	  SELECT ''
+	  SELECT '  '
   ) WHERE playerToMove = 1 AND pong.screen.rowNumber >= playerTop AND pong.screen.rowNumber <= playerBottom;
   UPDATE pong.screen SET (cell1) = (
-	  SELECT '#'
+	  SELECT '# '
   ) WHERE playerToMove = 1 AND pong.screen.rowNumber >= playerTopNew AND pong.screen.rowNumber <= playerBottomNew;
   -- Need to repeat the same UPDATE for the other player, since the field name can't be dynamically assigned
   UPDATE pong.screen SET (cell9) = (
-	  SELECT ''
+	  SELECT '  '
   ) WHERE playerToMove = 2 AND pong.screen.rowNumber >= playerTop AND pong.screen.rowNumber <= playerBottom;
   UPDATE pong.screen SET (cell9) = (
-	  SELECT '#'
+	  SELECT ' #'
   ) WHERE playerToMove = 2 AND pong.screen.rowNumber >= playerTopNew AND pong.screen.rowNumber <= playerBottomNew;
 
   UPDATE pong.players SET (top, bottom) = (playerTopNew, playerBottomNew) WHERE playernumber = playerToMove;
@@ -164,15 +168,15 @@ BEGIN
   
   -- Find the row with the ball and blindly remove it from all fields, since Postgres can't access fields by column number
   UPDATE pong.screen SET (cell1, cell2, cell3, cell4, cell5, cell6, cell7, cell8, cell9) = (
-	  REPLACE(cell1, '@', ''),
-      REPLACE(cell2, '@', ''),
-      REPLACE(cell3, '@', ''),
-      REPLACE(cell4, '@', ''),
-      REPLACE(cell5, '@', ''),
-      REPLACE(cell6, '@', ''),
-      REPLACE(cell7, '@', ''),
-      REPLACE(cell8, '@', ''),
-      REPLACE(cell9, '@', '')
+      REPLACE(cell1, '@ ', '  '),
+      REPLACE(cell2, '@ ', '  '),
+      REPLACE(cell3, '@ ', '  '),
+      REPLACE(cell4, '@ ', '  '),
+      REPLACE(cell5, '@ ', '  '),
+      REPLACE(cell6, '@ ', '  '),
+      REPLACE(cell7, '@ ', '  '),
+      REPLACE(cell8, '@ ', '  '),
+      REPLACE(cell9, '@ ', '  ')
   ) WHERE rowNumber = rowWithBall;
   -- Redraw the ball based on its new coordinates
   UPDATE pong.screen SET (cell1, cell2, cell3, cell4, cell5, cell6, cell7, cell8, cell9) = (
@@ -181,46 +185,46 @@ BEGIN
 	  WHEN yNew >= top1 AND yNew <= bottom1 THEN 
 	    CASE
 	      WHEN xNew = 1 THEN '#@'
-	      ELSE '#'
+	      ELSE '# '
 	    END
-	  ELSE ''
+	  ELSE '  '
 	END,
 	CASE
-	  WHEN xNew = 2 THEN '@'
-	  ELSE ''
+	  WHEN xNew = 2 THEN '@ '
+	  ELSE '  '
 	END,
 	CASE
-	  WHEN xNew = 3 THEN '@'
-	  ELSE ''
+	  WHEN xNew = 3 THEN '@ '
+	  ELSE '  '
 	END,
 	CASE
-	  WHEN xNew = 4 THEN '@'
-	  ELSE ''
+	  WHEN xNew = 4 THEN '@ '
+	  ELSE '  '
 	END,
 	CASE
-	  WHEN xNew = 5 THEN '@'
-	  ELSE ''
+	  WHEN xNew = 5 THEN '@ '
+	  ELSE '  '
 	END,
 	CASE
-	  WHEN xNew = 6 THEN '@'
-	  ELSE ''
+	  WHEN xNew = 6 THEN '@ '
+	  ELSE '  '
 	END,
 	CASE
-	  WHEN xNew = 7 THEN '@'
-	  ELSE ''
+	  WHEN xNew = 7 THEN '@ '
+	  ELSE '  '
 	END,
 	CASE
-	  WHEN xNew = 8 THEN '@'
-	  ELSE ''
+	  WHEN xNew = 8 THEN '@ '
+	  ELSE '  '
 	END,
 	CASE
 	  -- Draw the paddle touching the ball, or just the paddle if there's no hit detected
 	  WHEN yNew >= top2 AND yNew <= bottom2 THEN 
 	    CASE
 	      WHEN xNew = screenWidth THEN '@#'
-	      ELSE '#'
+	      ELSE ' #'
 	    END
-	  ELSE ''
+	  ELSE '  '
 	END
   ) WHERE rowNumber = yNew;
 
