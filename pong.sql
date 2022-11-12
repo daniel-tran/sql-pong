@@ -160,6 +160,8 @@ CREATE OR REPLACE FUNCTION pong.moveBall() RETURNS integer AS $$
   DECLARE yNew integer;
   DECLARE xDirectionNew integer;
   DECLARE yDirectionNew integer;
+  DECLARE xWithSkewedDirection integer;
+  DECLARE yWithSkewedDirection integer;
   DECLARE rowWithBall integer;
   DECLARE screenRowFirst integer;
   DECLARE screenRowFinal integer;
@@ -174,12 +176,13 @@ BEGIN
   SELECT 1, 9, 1, COUNT(*) INTO screenColumnFirst, screenColumnFinal, screenRowFirst, screenRowFinal FROM pong.screen;
   SELECT top, bottom INTO top1, bottom1 FROM pong.players WHERE playernumber = 1;
   SELECT top, bottom INTO top2, bottom2 FROM pong.players WHERE playernumber = 2;
+  SELECT y, (x + (xDirection * xSkew)), (y + (yDirection * ySkew)) INTO rowWithBall, xWithSkewedDirection, yWithSkewedDirection FROM pong.ball;
   
   -- Calculate the player index that scored based on where the ball will move next.
   -- 0 = No player has scored in this current turn
   SELECT CASE
-    WHEN (x + (xDirection * xSkew)) <= screenColumnFirst AND ((y + (yDirection * ySkew)) < top1 OR (y + (yDirection * ySkew)) > bottom1) THEN 2
-	WHEN (x + (xDirection * xSkew)) >= screenColumnFinal AND ((y + (yDirection * ySkew)) < top2 OR (y + (yDirection * ySkew)) > bottom2) THEN 1
+    WHEN xWithSkewedDirection <= screenColumnFirst AND (yWithSkewedDirection < top1 OR yWithSkewedDirection > bottom1) THEN 2
+	WHEN xWithSkewedDirection >= screenColumnFinal AND (yWithSkewedDirection < top2 OR yWithSkewedDirection > bottom2) THEN 1
 	ELSE 0
   END INTO whichPlayerHasScored FROM pong.ball;
   -- Register the score
@@ -189,12 +192,12 @@ BEGIN
   SELECT CASE
     -- Reset the X coordinate if the P1 paddle missed the hit
     WHEN whichPlayerHasScored > 0 THEN 5
-    ELSE GREATEST(screenColumnFirst, LEAST(screenColumnFinal, x + (xDirection * xSkew) ))
+    ELSE GREATEST(screenColumnFirst, LEAST(screenColumnFinal, xWithSkewedDirection))
   END INTO xNew FROM pong.ball;
   SELECT CASE
     -- Reset the Y coordinate if the P1 paddle missed the hit
     WHEN whichPlayerHasScored > 0 THEN 5
-    ELSE GREATEST(screenRowFirst, LEAST(screenRowFinal, y + (yDirection * ySkew) ))
+    ELSE GREATEST(screenRowFirst, LEAST(screenRowFinal, yWithSkewedDirection))
   END INTO yNew FROM pong.ball;
   -- Reflect the ball when it hits the edge of the screen
   SELECT CASE
@@ -210,8 +213,6 @@ BEGIN
   PERFORM CASE
     WHEN (whichPlayerHasScored > 0) OR (xDirection != xDirectionNew AND pong.shouldAdjustBallSkewOnHit()) THEN pong.setDirectionalSkewOnBall()
   END FROM pong.ball;
-
-  SELECT y INTO rowWithBall FROM pong.ball;
   
   -- Find the row with the ball and blindly remove it from all fields, since Postgres can't access fields by column number
   UPDATE pong.screen SET (cell1, cell2, cell3, cell4, cell5, cell6, cell7, cell8, cell9) = (
