@@ -34,6 +34,49 @@ CREATE TABLE IF NOT EXISTS pong.ball (x, y, xSkew, ySkew, xDirection, yDirection
 ---------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------
 
+CREATE OR REPLACE FUNCTION pong.drawPaddle(playerNumber integer, collidesWithBall boolean) RETURNS text AS $$
+  DECLARE paddleCharacter text;
+BEGIN
+  SELECT CASE
+    WHEN playerNumber = 1 THEN
+      CASE
+        WHEN collidesWithBall = FALSE THEN '# '
+        ELSE '#@'
+      END
+    ELSE
+      -- Player 2
+      CASE
+        WHEN collidesWithBall = FALSE THEN ' #'
+        ELSE '@#'
+      END
+  END INTO paddleCharacter;
+  RETURN paddleCharacter;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION pong.drawEmptySpace() RETURNS text AS $$
+BEGIN
+  RETURN '  ';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION pong.drawBall() RETURNS text AS $$
+BEGIN
+  RETURN '@ ';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION pong.drawBallOrEmptySpace(isBall boolean) RETURNS text AS $$
+  DECLARE cellCharacter text;
+BEGIN
+  SELECT CASE
+    WHEN isBall THEN pong.drawBall()
+    ELSE pong.drawEmptySpace()
+  END INTO cellCharacter;
+  RETURN cellCharacter;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Just a dummy function that should control the skew factor during ball movement
 CREATE OR REPLACE FUNCTION pong.setDirectionalSkewOnBall() RETURNS integer AS $$
   DECLARE xSkewNew integer;
@@ -83,17 +126,17 @@ BEGIN
   
   -- Wipe out the paddle and redraw it again at its new coordinates
   UPDATE pong.screen SET (cell1) = (
-	  SELECT '  '
+	  SELECT pong.drawEmptySpace()
   ) WHERE playerToMove = 1 AND pong.screen.rowNumber >= playerTop AND pong.screen.rowNumber <= playerBottom;
   UPDATE pong.screen SET (cell1) = (
-	  SELECT '# '
+	  SELECT pong.drawPaddle(1, FALSE)
   ) WHERE playerToMove = 1 AND pong.screen.rowNumber >= playerTopNew AND pong.screen.rowNumber <= playerBottomNew;
   -- Need to repeat the same UPDATE for the other player, since the field name can't be dynamically assigned
   UPDATE pong.screen SET (cell9) = (
-	  SELECT '  '
+	  SELECT pong.drawEmptySpace()
   ) WHERE playerToMove = 2 AND pong.screen.rowNumber >= playerTop AND pong.screen.rowNumber <= playerBottom;
   UPDATE pong.screen SET (cell9) = (
-	  SELECT ' #'
+	  SELECT pong.drawPaddle(2, FALSE)
   ) WHERE playerToMove = 2 AND pong.screen.rowNumber >= playerTopNew AND pong.screen.rowNumber <= playerBottomNew;
 
   UPDATE pong.players SET (top, bottom) = (playerTopNew, playerBottomNew) WHERE playernumber = playerToMove;
@@ -168,63 +211,34 @@ BEGIN
   
   -- Find the row with the ball and blindly remove it from all fields, since Postgres can't access fields by column number
   UPDATE pong.screen SET (cell1, cell2, cell3, cell4, cell5, cell6, cell7, cell8, cell9) = (
-      REPLACE(cell1, '@ ', '  '),
-      REPLACE(cell2, '@ ', '  '),
-      REPLACE(cell3, '@ ', '  '),
-      REPLACE(cell4, '@ ', '  '),
-      REPLACE(cell5, '@ ', '  '),
-      REPLACE(cell6, '@ ', '  '),
-      REPLACE(cell7, '@ ', '  '),
-      REPLACE(cell8, '@ ', '  '),
-      REPLACE(cell9, '@ ', '  ')
+      REPLACE(cell1, pong.drawBall(), pong.drawEmptySpace()),
+      REPLACE(cell2, pong.drawBall(), pong.drawEmptySpace()),
+      REPLACE(cell3, pong.drawBall(), pong.drawEmptySpace()),
+      REPLACE(cell4, pong.drawBall(), pong.drawEmptySpace()),
+      REPLACE(cell5, pong.drawBall(), pong.drawEmptySpace()),
+      REPLACE(cell6, pong.drawBall(), pong.drawEmptySpace()),
+      REPLACE(cell7, pong.drawBall(), pong.drawEmptySpace()),
+      REPLACE(cell8, pong.drawBall(), pong.drawEmptySpace()),
+      REPLACE(cell9, pong.drawBall(), pong.drawEmptySpace())
   ) WHERE rowNumber = rowWithBall;
   -- Redraw the ball based on its new coordinates
   UPDATE pong.screen SET (cell1, cell2, cell3, cell4, cell5, cell6, cell7, cell8, cell9) = (
 	SELECT CASE
       -- Draw the paddle touching the ball, or just the paddle if there's no hit detected
-	  WHEN yNew >= top1 AND yNew <= bottom1 THEN 
-	    CASE
-	      WHEN xNew = 1 THEN '#@'
-	      ELSE '# '
-	    END
-	  ELSE '  '
+	  WHEN yNew >= top1 AND yNew <= bottom1 THEN pong.drawPaddle(1, xNew = 1)
+	  ELSE pong.drawEmptySpace()
 	END,
-	CASE
-	  WHEN xNew = 2 THEN '@ '
-	  ELSE '  '
-	END,
-	CASE
-	  WHEN xNew = 3 THEN '@ '
-	  ELSE '  '
-	END,
-	CASE
-	  WHEN xNew = 4 THEN '@ '
-	  ELSE '  '
-	END,
-	CASE
-	  WHEN xNew = 5 THEN '@ '
-	  ELSE '  '
-	END,
-	CASE
-	  WHEN xNew = 6 THEN '@ '
-	  ELSE '  '
-	END,
-	CASE
-	  WHEN xNew = 7 THEN '@ '
-	  ELSE '  '
-	END,
-	CASE
-	  WHEN xNew = 8 THEN '@ '
-	  ELSE '  '
-	END,
+	pong.drawBallOrEmptySpace(xNew = 2),
+	pong.drawBallOrEmptySpace(xNew = 3),
+	pong.drawBallOrEmptySpace(xNew = 4),
+	pong.drawBallOrEmptySpace(xNew = 5),
+	pong.drawBallOrEmptySpace(xNew = 6),
+	pong.drawBallOrEmptySpace(xNew = 7),
+	pong.drawBallOrEmptySpace(xNew = 8),
 	CASE
 	  -- Draw the paddle touching the ball, or just the paddle if there's no hit detected
-	  WHEN yNew >= top2 AND yNew <= bottom2 THEN 
-	    CASE
-	      WHEN xNew = screenWidth THEN '@#'
-	      ELSE ' #'
-	    END
-	  ELSE '  '
+	  WHEN yNew >= top2 AND yNew <= bottom2 THEN pong.drawPaddle(2, xNew = screenWidth)
+	  ELSE pong.drawEmptySpace()
 	END
   ) WHERE rowNumber = yNew;
 
