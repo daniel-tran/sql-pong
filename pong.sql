@@ -165,10 +165,8 @@ CREATE OR REPLACE FUNCTION pong.moveBall() RETURNS integer AS $$
 BEGIN
   SELECT 9 INTO screenWidth;
   SELECT COUNT(*) INTO screenHeight FROM pong.screen;
-  SELECT top INTO top1 FROM pong.players WHERE playernumber = 1;
-  SELECT bottom INTO bottom1 FROM pong.players WHERE playernumber = 1;
-  SELECT top INTO top2 FROM pong.players WHERE playernumber = 2;
-  SELECT bottom INTO bottom2 FROM pong.players WHERE playernumber = 2;
+  SELECT top, bottom INTO top1, bottom1 FROM pong.players WHERE playernumber = 1;
+  SELECT top, bottom INTO top2, bottom2 FROM pong.players WHERE playernumber = 2;
   
   -- Calculate the player index that scored based on where the ball will move next.
   -- 0 = No player has scored in this current turn
