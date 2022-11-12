@@ -113,20 +113,21 @@ CREATE OR REPLACE FUNCTION pong.movePlayer(playerToMove integer, actionValue int
   DECLARE playerTopNew integer;
   DECLARE playerBottom integer;
   DECLARE playerBottomNew integer;
-  DECLARE screenHeight integer;
+  DECLARE screenRowFirst integer;
+  DECLARE screenRowFinal integer;
 BEGIN
-  SELECT COUNT(*) INTO screenHeight FROM pong.screen;
+  SELECT 1, COUNT(*) INTO screenRowFirst, screenRowFinal FROM pong.screen;
   -- Keep the player's paddle within the screen height
   SELECT top INTO playerTop FROM pong.players WHERE playernumber = playerToMove;
   SELECT CASE
-    WHEN actionValue > 0 AND bottom < screenHeight THEN top + 1
-	WHEN actionValue < 0 AND top > 1 THEN top - 1
+    WHEN actionValue > 0 AND bottom < screenRowFinal THEN top + 1
+	WHEN actionValue < 0 AND top > screenRowFirst THEN top - 1
 	ELSE top
   END INTO playerTopNew FROM pong.players WHERE playernumber = playerToMove;
   SELECT bottom INTO playerBottom FROM pong.players WHERE playernumber = playerToMove;
   SELECT CASE
-    WHEN actionValue > 0 AND bottom < screenHeight THEN bottom + 1
-	WHEN actionValue < 0 AND top > 1 THEN bottom - 1
+    WHEN actionValue > 0 AND bottom < screenRowFinal THEN bottom + 1
+	WHEN actionValue < 0 AND top > screenRowFirst THEN bottom - 1
 	ELSE bottom
   END INTO playerBottomNew FROM pong.players WHERE playernumber = playerToMove;
   
@@ -160,24 +161,25 @@ CREATE OR REPLACE FUNCTION pong.moveBall() RETURNS integer AS $$
   DECLARE xDirectionNew integer;
   DECLARE yDirectionNew integer;
   DECLARE rowWithBall integer;
-  DECLARE screenHeight integer;
-  DECLARE screenWidth integer;
+  DECLARE screenRowFirst integer;
+  DECLARE screenRowFinal integer;
+  DECLARE screenColumnFirst integer;
+  DECLARE screenColumnFinal integer;
   DECLARE top1 integer;
   DECLARE bottom1 integer;
   DECLARE top2 integer;
   DECLARE bottom2 integer;
   DECLARE whichPlayerHasScored integer;
 BEGIN
-  SELECT 9 INTO screenWidth;
-  SELECT COUNT(*) INTO screenHeight FROM pong.screen;
+  SELECT 1, 9, 1, COUNT(*) INTO screenColumnFirst, screenColumnFinal, screenRowFirst, screenRowFinal FROM pong.screen;
   SELECT top, bottom INTO top1, bottom1 FROM pong.players WHERE playernumber = 1;
   SELECT top, bottom INTO top2, bottom2 FROM pong.players WHERE playernumber = 2;
   
   -- Calculate the player index that scored based on where the ball will move next.
   -- 0 = No player has scored in this current turn
   SELECT CASE
-    WHEN (x + (xDirection * xSkew)) <= 1 AND ((y + (yDirection * ySkew)) < top1 OR (y + (yDirection * ySkew)) > bottom1) THEN 2
-	WHEN (x + (xDirection * xSkew)) >= screenWidth AND ((y + (yDirection * ySkew)) < top2 OR (y + (yDirection * ySkew)) > bottom2) THEN 1
+    WHEN (x + (xDirection * xSkew)) <= screenColumnFirst AND ((y + (yDirection * ySkew)) < top1 OR (y + (yDirection * ySkew)) > bottom1) THEN 2
+	WHEN (x + (xDirection * xSkew)) >= screenColumnFinal AND ((y + (yDirection * ySkew)) < top2 OR (y + (yDirection * ySkew)) > bottom2) THEN 1
 	ELSE 0
   END INTO whichPlayerHasScored FROM pong.ball;
   -- Register the score
@@ -187,20 +189,20 @@ BEGIN
   SELECT CASE
     -- Reset the X coordinate if the P1 paddle missed the hit
     WHEN whichPlayerHasScored > 0 THEN 5
-    ELSE GREATEST(1, LEAST(screenWidth, x + (xDirection * xSkew) ))
+    ELSE GREATEST(screenColumnFirst, LEAST(screenColumnFinal, x + (xDirection * xSkew) ))
   END INTO xNew FROM pong.ball;
   SELECT CASE
     -- Reset the Y coordinate if the P1 paddle missed the hit
     WHEN whichPlayerHasScored > 0 THEN 5
-    ELSE GREATEST(1, LEAST(screenHeight, y + (yDirection * ySkew) ))
+    ELSE GREATEST(screenRowFirst, LEAST(screenRowFinal, y + (yDirection * ySkew) ))
   END INTO yNew FROM pong.ball;
   -- Reflect the ball when it hits the edge of the screen
   SELECT CASE
-    WHEN xNew >= screenWidth OR (xNew = 1 AND yNew >= top1 AND yNew <= bottom1) THEN xDirection * -1
+    WHEN xNew >= screenColumnFinal OR (xNew = screenColumnFirst AND yNew >= top1 AND yNew <= bottom1) THEN xDirection * -1
 	ELSE xDirection
   END INTO xDirectionNew FROM pong.ball;
   SELECT CASE
-    WHEN yNew <= 1 OR yNew >= screenHeight THEN yDirection * -1
+    WHEN yNew <= screenRowFirst OR yNew >= screenRowFinal THEN yDirection * -1
 	ELSE yDirection
   END INTO yDirectionNew FROM pong.ball;
   
@@ -227,7 +229,7 @@ BEGIN
   UPDATE pong.screen SET (cell1, cell2, cell3, cell4, cell5, cell6, cell7, cell8, cell9) = (
 	SELECT CASE
       -- Draw the paddle touching the ball, or just the paddle if there's no hit detected
-	  WHEN yNew >= top1 AND yNew <= bottom1 THEN pong.drawPaddle(1, xNew = 1)
+	  WHEN yNew >= top1 AND yNew <= bottom1 THEN pong.drawPaddle(1, xNew = screenColumnFirst)
 	  ELSE pong.drawEmptySpace()
 	END,
 	pong.drawBallOrEmptySpace(xNew = 2),
@@ -239,7 +241,7 @@ BEGIN
 	pong.drawBallOrEmptySpace(xNew = 8),
 	CASE
 	  -- Draw the paddle touching the ball, or just the paddle if there's no hit detected
-	  WHEN yNew >= top2 AND yNew <= bottom2 THEN pong.drawPaddle(2, xNew = screenWidth)
+	  WHEN yNew >= top2 AND yNew <= bottom2 THEN pong.drawPaddle(2, xNew = screenColumnFinal)
 	  ELSE pong.drawEmptySpace()
 	END
   ) WHERE rowNumber = yNew;
