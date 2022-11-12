@@ -19,12 +19,40 @@ CREATE TABLE IF NOT EXISTS pong.players (playerNumber, top, bottom, score) AS VA
 (2, 4, 6, 0);
 
 DROP TABLE IF EXISTS pong.ball;
-CREATE TABLE IF NOT EXISTS pong.ball (x, y, xDirection, yDirection) AS VALUES
-(5, 5, 1, -1);
+-- Direction and skew are separate fields, as this provides more granular control when adjusting the ball's movement
+-- Example: xDirection = 1, xSkew = 1 ---> The ball moves right in increments of 1 cell
+--          xDirection = -1, xSkew = 1 --> The ball moves left in increments of 1 cell
+--          xDirection = -1, xSkew = 2 --> The ball moves left in increments of 2 cells
+CREATE TABLE IF NOT EXISTS pong.ball (x, y, xSkew, ySkew, xDirection, yDirection) AS VALUES
+(5, 5, 2, 1, 1, -1);
 
 ---------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------
+
+-- Just a dummy function that should control the skew factor during ball movement
+CREATE OR REPLACE FUNCTION pong.setDirectionalSkewOnBall() RETURNS integer AS $$
+  DECLARE xSkewNew integer;
+  DECLARE ySkewNew integer;
+BEGIN
+  -- Range from 0 to 2
+  SELECT FLOOR(RANDOM() * 3) INTO ySkewNew;
+  SELECT CASE
+    -- Can't set this to 2, otherwise the ball moves "too fast"
+    -- Can't set this to 0, otherwise the ball moves nowhere
+    WHEN (ySkewNew = 2) OR (ySkewNew = 0) THEN 1
+	-- Range from 1 to 2, this can't be 0 for the same reason stated above
+	ELSE FLOOR(RANDOM() * 2) + 1
+  END INTO xSkewNew;
+
+  UPDATE pong.ball SET (xSkew, ySkew) = (xSkewNew, ySkewNew);
+  RETURN 0;
+END;
+$$ LANGUAGE plpgsql;
+-- Randomise initial ball skew, otherwise the start of the game becomes fairly predictable
+SELECT pong.setDirectionalSkewOnBall();
+--SELECT * FROM pong.ball;
+
 
 -- Just a dummy function that should eventually update the player's location
 CREATE OR REPLACE FUNCTION pong.movePlayer(playerToMove integer, actionValue integer) RETURNS integer AS $$
@@ -68,9 +96,9 @@ BEGIN
   RETURN 0;
 END;
 $$ LANGUAGE plpgsql;
-SELECT pong.movePlayer(1, -1);
-SELECT pong.movePlayer(2, 1);
-SELECT * from pong.screen ORDER BY rowNumber ASC;
+--SELECT pong.movePlayer(1, -1);
+--SELECT pong.movePlayer(2, 1);
+--SELECT * from pong.screen ORDER BY rowNumber ASC;
 
 -- Just a dummy function that should eventually update the ball's location
 CREATE OR REPLACE FUNCTION pong.moveBall() RETURNS integer AS $$
@@ -97,27 +125,32 @@ BEGIN
   -- Calculate the player index that scored based on where the ball will move next.
   -- 0 = No player has scored in this current turn
   SELECT CASE
-    WHEN (x + xDirection) <= 1 AND ((y + yDirection) < top1 OR (y + yDirection) > bottom1) THEN 2
-	WHEN (x + xDirection) >= screenWidth AND ((y + yDirection) < top2 OR (y + yDirection) > bottom2) THEN 1
+    WHEN (x + (xDirection * xSkew)) <= 1 AND ((y + (yDirection * ySkew)) < top1 OR (y + (yDirection * ySkew)) > bottom1) THEN 2
+	WHEN (x + (xDirection * xSkew)) >= screenWidth AND ((y + (yDirection * ySkew)) < top2 OR (y + (yDirection * ySkew)) > bottom2) THEN 1
 	ELSE 0
   END INTO whichPlayerHasScored FROM pong.ball;
   -- Register the score
   UPDATE pong.players SET (score) = (SELECT score + 1) WHERE playernumber = whichPlayerHasScored;
   
+  -- Change the ball's movement pattern when it's reset
+  PERFORM CASE
+    WHEN whichPlayerHasScored > 0 THEN pong.setDirectionalSkewOnBall()
+  END;
+
   -- Keep the ball within the boundaries of the screen
   SELECT CASE
     -- Reset the X coordinate if the P1 paddle missed the hit
     WHEN whichPlayerHasScored > 0 THEN 5
-    ELSE GREATEST(1, LEAST(screenWidth, x + xDirection))
+    ELSE GREATEST(1, LEAST(screenWidth, x + (xDirection * xSkew) ))
   END INTO xNew FROM pong.ball;
   SELECT CASE
     -- Reset the Y coordinate if the P1 paddle missed the hit
     WHEN whichPlayerHasScored > 0 THEN 5
-    ELSE GREATEST(1, LEAST(screenHeight, y + yDirection))
+    ELSE GREATEST(1, LEAST(screenHeight, y + (yDirection * ySkew) ))
   END INTO yNew FROM pong.ball;
   -- Reflect the ball when it hits the edge of the screen
   SELECT CASE
-    WHEN xNew >= screenWidth OR (xNew = 1 AND y >= top1 AND y <= bottom1) THEN xDirection * -1
+    WHEN xNew >= screenWidth OR (xNew = 1 AND yNew >= top1 AND yNew <= bottom1) THEN xDirection * -1
 	ELSE xDirection
   END INTO xDirectionNew FROM pong.ball;
   SELECT CASE
