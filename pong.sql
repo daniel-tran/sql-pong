@@ -100,6 +100,18 @@ $$ LANGUAGE plpgsql;
 SELECT pong.setDirectionalSkewOnBall();
 --SELECT * FROM pong.ball;
 
+-- Just a dummy function that determines the new value for a ball's direction on a given axis of movement
+CREATE OR REPLACE FUNCTION pong.calculateNewBallDirection(directionOriginal integer) RETURNS integer AS $$
+  DECLARE directionNew integer;
+BEGIN
+  SELECT CASE
+    WHEN FLOOR(RANDOM() * 2) <= 0.9 THEN directionOriginal * -1
+    ELSE directionOriginal
+  END INTO directionNew;
+  RETURN directionNew;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Just a dummy function that should decide whether the ball's movement changes on hit
 CREATE OR REPLACE FUNCTION pong.shouldAdjustBallSkewOnHit() RETURNS boolean AS $$
 BEGIN
@@ -201,10 +213,12 @@ BEGIN
   END INTO yNew FROM pong.ball;
   -- Reflect the ball when it hits the edge of the screen
   SELECT CASE
+    WHEN whichPlayerHasScored > 0 THEN pong.calculateNewBallDirection(xDirection)
     WHEN xNew >= screenColumnFinal OR (xNew = screenColumnFirst AND yNew >= top1 AND yNew <= bottom1) THEN xDirection * -1
 	ELSE xDirection
   END INTO xDirectionNew FROM pong.ball;
   SELECT CASE
+    WHEN whichPlayerHasScored > 0 THEN pong.calculateNewBallDirection(yDirection)
     WHEN yNew <= screenRowFirst OR yNew >= screenRowFinal THEN yDirection * -1
 	ELSE yDirection
   END INTO yDirectionNew FROM pong.ball;
