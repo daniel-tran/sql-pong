@@ -278,6 +278,33 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Just a dummy function that moves one player with user input, the other with calculations and the ball in a single function call
+CREATE OR REPLACE FUNCTION pong.playGameWithOnePlayer(player integer, playerMovement integer) RETURNS integer AS $$
+  DECLARE playerOther integer;
+  DECLARE playerMovementOther integer;
+  DECLARE ballY integer;
+BEGIN
+  SELECT y INTO ballY FROM pong.ball;
+  -- Determine who the CPU player is
+  SELECT CASE
+    WHEN player = 1 THEN 2
+    ELSE 1
+  END INTO playerOther;
+  -- Pick a direction to go in - This is where the "brains" of the CPU movement are represented
+  SELECT CASE
+    WHEN ballY < top THEN -1
+    WHEN ballY > bottom THEN 1
+    ELSE 0
+  END INTO playerMovementOther FROM pong.players WHERE playerNumber = playerOther;
+
+  PERFORM CASE
+    WHEN playerOther = 1 THEN pong.playGameWithTwoPlayers(playerMovementOther, playerMovement)
+    ELSE pong.playGameWithTwoPlayers(playerMovement, playerMovementOther)
+  END;
+  RETURN 0;
+END;
+$$ LANGUAGE plpgsql;
+
 SELECT pong.playGameWithTwoPlayers(0, 0);
 -- ORDER BY is necessary, since UPDATE won't preserve the original row order by default
 SELECT * from pong.screen ORDER BY rowNumber ASC;
