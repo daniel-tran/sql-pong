@@ -18,9 +18,9 @@ CREATE TABLE IF NOT EXISTS pong.screen (rowNumber, cell1, cell2, cell3, cell4, c
 (9, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ');
 
 DROP TABLE IF EXISTS pong.players;
-CREATE TABLE IF NOT EXISTS pong.players (playerNumber, top, bottom, score) AS VALUES
-(1, 4, 6, 0),
-(2, 4, 6, 0);
+CREATE TABLE IF NOT EXISTS pong.players (playerNumber, top, bottom, cpuDifficultyLevel, score) AS VALUES
+(1, 4, 6, 1, 0),
+(2, 4, 6, 0, 0);
 
 DROP TABLE IF EXISTS pong.ball;
 -- Direction and skew are separate fields, as this provides more granular control when adjusting the ball's movement
@@ -283,13 +283,19 @@ CREATE OR REPLACE FUNCTION pong.playGameWithOnePlayer(player integer, playerMove
   DECLARE playerOther integer;
   DECLARE playerMovementOther integer;
   DECLARE ballY integer;
+  DECLARE playerOtherDifficultyLevel integer;
 BEGIN
-  SELECT y INTO ballY FROM pong.ball;
   -- Determine who the CPU player is
   SELECT CASE
     WHEN player = 1 THEN 2
     ELSE 1
   END INTO playerOther;
+  SELECT cpuDifficultyLevel INTO playerOtherDifficultyLevel FROM pong.players WHERE playerNumber = playerOther;
+  -- More difficult CPU opponents will take into consideration the ball's movement pattern
+  SELECT CASE
+    WHEN playerOtherDifficultyLevel > 0 THEN y + (yDirection * ySkew)
+    ELSE y
+  END INTO ballY FROM pong.ball;
   -- Pick a direction to go in - This is where the "brains" of the CPU movement are represented
   SELECT CASE
     WHEN ballY < top THEN -1
@@ -306,5 +312,10 @@ END;
 $$ LANGUAGE plpgsql;
 
 SELECT pong.playGameWithTwoPlayers(0, 0);
+
+-- Set the difficulty for one of the players in 1P mode
+--UPDATE pong.players SET (cpuDifficultyLevel) = (SELECT 1) WHERE playerNumber = 1;
+--SELECT pong.playGameWithOnePlayer(2, 0);
+
 -- ORDER BY is necessary, since UPDATE won't preserve the original row order by default
 SELECT * from pong.screen ORDER BY rowNumber ASC;
