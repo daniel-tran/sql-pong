@@ -18,6 +18,7 @@ BEGIN
   -- By keeping the length of each cell consistent at all times, the table output looks more presentable when viewed using psql.
   -- The convention is that any paddle cell is aligned to its respective side, and any other cell that has to
   -- render a single character is left-aligned.
+  INSERT INTO pong.screen VALUES (DEFAULT, '==', '==', '==', '==', '==', '==', '==', '==', '==');
   INSERT INTO pong.screen VALUES (DEFAULT, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ');
   INSERT INTO pong.screen VALUES (DEFAULT, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ');
   INSERT INTO pong.screen VALUES (DEFAULT, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ');
@@ -27,6 +28,7 @@ BEGIN
   INSERT INTO pong.screen VALUES (DEFAULT, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ');
   INSERT INTO pong.screen VALUES (DEFAULT, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ');
   INSERT INTO pong.screen VALUES (DEFAULT, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ');
+  INSERT INTO pong.screen VALUES (DEFAULT, '==', '==', '==', '==', '==', '==', '==', '==', '==');
 
   DROP TABLE IF EXISTS pong.players;
   CREATE TABLE IF NOT EXISTS pong.players (playerNumber serial PRIMARY KEY,
@@ -34,8 +36,8 @@ BEGIN
                                            bottom integer,
                                            cpuDifficultyLevel integer,
                                            score integer);
-  INSERT INTO pong.players VALUES (DEFAULT, 4, 6, player1CpuDifficulty, 0);
-  INSERT INTO pong.players VALUES (DEFAULT, 4, 6, player2CpuDifficulty, 0);
+  INSERT INTO pong.players VALUES (DEFAULT, 5, 7, player1CpuDifficulty, 0);
+  INSERT INTO pong.players VALUES (DEFAULT, 5, 7, player2CpuDifficulty, 0);
 
   DROP TABLE IF EXISTS pong.ball;
   -- Single row table constraint, see https://stackoverflow.com/a/25393923
@@ -51,7 +53,7 @@ BEGIN
   -- Example: xDirection = 1, xSkew = 1 ---> The ball moves right in increments of 1 cell
   --          xDirection = -1, xSkew = 1 --> The ball moves left in increments of 1 cell
   --          xDirection = -1, xSkew = 2 --> The ball moves left in increments of 2 cells
-  INSERT INTO pong.ball VALUES (TRUE, 5, 5, 2, 1, 1, -1);
+  INSERT INTO pong.ball VALUES (TRUE, 5, 6, 2, 1, 1, -1);
 
   -- Randomise initial ball skew, otherwise the start of the game becomes fairly predictable
   PERFORM pong.setDirectionalSkewOnBall();
@@ -154,7 +156,7 @@ CREATE OR REPLACE FUNCTION pong.movePlayer(playerToMove integer, actionValue int
   DECLARE screenRowFirst integer;
   DECLARE screenRowFinal integer;
 BEGIN
-  SELECT 1, COUNT(*) INTO screenRowFirst, screenRowFinal FROM pong.screen;
+  SELECT 2, COUNT(*) - 1 INTO screenRowFirst, screenRowFinal FROM pong.screen;
   -- Keep the player's paddle within the screen height
   SELECT top INTO playerTop FROM pong.players WHERE playernumber = playerToMove;
   SELECT CASE
@@ -238,7 +240,7 @@ CREATE OR REPLACE FUNCTION pong.moveBall() RETURNS integer AS $$
   DECLARE bottom2 integer;
   DECLARE whichPlayerHasScored integer;
 BEGIN
-  SELECT 1, 9, 1, COUNT(*) INTO screenColumnFirst, screenColumnFinal, screenRowFirst, screenRowFinal FROM pong.screen;
+  SELECT 1, 9, 2, COUNT(*) - 1 INTO screenColumnFirst, screenColumnFinal, screenRowFirst, screenRowFinal FROM pong.screen;
   SELECT top, bottom INTO top1, bottom1 FROM pong.players WHERE playernumber = 1;
   SELECT top, bottom INTO top2, bottom2 FROM pong.players WHERE playernumber = 2;
   SELECT (x + (xDirection * xSkew)), (y + (yDirection * ySkew)) INTO xWithSkewedDirection, yWithSkewedDirection FROM pong.ball;
