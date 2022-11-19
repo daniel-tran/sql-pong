@@ -173,6 +173,27 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION pong.clearBallFromScreen() RETURNS integer AS $$
+  DECLARE rowWithBall integer;
+BEGIN
+  SELECT y INTO rowWithBall FROM pong.ball;
+  -- Find the row with the ball and blindly remove it from all fields, since Postgres can't access fields by column number
+  -- Only one row needs to be updated, on the assumption that there is only ever one ball on the screen
+  UPDATE pong.screen SET (cell1, cell2, cell3, cell4, cell5, cell6, cell7, cell8, cell9) = (
+    REPLACE(cell1, pong.drawBall(), pong.drawEmptySpace()),
+    REPLACE(cell2, pong.drawBall(), pong.drawEmptySpace()),
+    REPLACE(cell3, pong.drawBall(), pong.drawEmptySpace()),
+    REPLACE(cell4, pong.drawBall(), pong.drawEmptySpace()),
+    REPLACE(cell5, pong.drawBall(), pong.drawEmptySpace()),
+    REPLACE(cell6, pong.drawBall(), pong.drawEmptySpace()),
+    REPLACE(cell7, pong.drawBall(), pong.drawEmptySpace()),
+    REPLACE(cell8, pong.drawBall(), pong.drawEmptySpace()),
+    REPLACE(cell9, pong.drawBall(), pong.drawEmptySpace())
+  ) WHERE rowNumber = rowWithBall;
+  RETURN 0;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Just a dummy function that should eventually update the ball's location
 CREATE OR REPLACE FUNCTION pong.moveBall() RETURNS integer AS $$
   DECLARE xNew integer;
@@ -181,7 +202,6 @@ CREATE OR REPLACE FUNCTION pong.moveBall() RETURNS integer AS $$
   DECLARE yDirectionNew integer;
   DECLARE xWithSkewedDirection integer;
   DECLARE yWithSkewedDirection integer;
-  DECLARE rowWithBall integer;
   DECLARE screenRowFirst integer;
   DECLARE screenRowFinal integer;
   DECLARE screenColumnFirst integer;
@@ -195,7 +215,7 @@ BEGIN
   SELECT 1, 9, 1, COUNT(*) INTO screenColumnFirst, screenColumnFinal, screenRowFirst, screenRowFinal FROM pong.screen;
   SELECT top, bottom INTO top1, bottom1 FROM pong.players WHERE playernumber = 1;
   SELECT top, bottom INTO top2, bottom2 FROM pong.players WHERE playernumber = 2;
-  SELECT y, (x + (xDirection * xSkew)), (y + (yDirection * ySkew)) INTO rowWithBall, xWithSkewedDirection, yWithSkewedDirection FROM pong.ball;
+  SELECT (x + (xDirection * xSkew)), (y + (yDirection * ySkew)) INTO xWithSkewedDirection, yWithSkewedDirection FROM pong.ball;
   
   -- Calculate the player index that scored based on where the ball will move next.
   -- 0 = No player has scored in this current turn
@@ -235,19 +255,8 @@ BEGIN
 
   -- Register the score
   PERFORM pong.incrementScore(whichPlayerHasScored);
-  -- Find the row with the ball and blindly remove it from all fields, since Postgres can't access fields by column number
-  UPDATE pong.screen SET (cell1, cell2, cell3, cell4, cell5, cell6, cell7, cell8, cell9) = (
-      REPLACE(cell1, pong.drawBall(), pong.drawEmptySpace()),
-      REPLACE(cell2, pong.drawBall(), pong.drawEmptySpace()),
-      REPLACE(cell3, pong.drawBall(), pong.drawEmptySpace()),
-      REPLACE(cell4, pong.drawBall(), pong.drawEmptySpace()),
-      REPLACE(cell5, pong.drawBall(), pong.drawEmptySpace()),
-      REPLACE(cell6, pong.drawBall(), pong.drawEmptySpace()),
-      REPLACE(cell7, pong.drawBall(), pong.drawEmptySpace()),
-      REPLACE(cell8, pong.drawBall(), pong.drawEmptySpace()),
-      REPLACE(cell9, pong.drawBall(), pong.drawEmptySpace())
-  ) WHERE rowNumber = rowWithBall;
   -- Redraw the ball based on its new coordinates
+  PERFORM pong.clearBallFromScreen();
   UPDATE pong.screen SET (cell1, cell2, cell3, cell4, cell5, cell6, cell7, cell8, cell9) = (
 	SELECT CASE
       -- Draw the paddle touching the ball, or just the paddle if there's no hit detected
