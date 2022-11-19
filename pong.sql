@@ -48,12 +48,21 @@ BEGIN
                                         ySkew integer,
                                         xDirection integer,
                                         yDirection integer,
+                                        xMinimum integer,
+                                        xMaximum integer,
+                                        yMinimum integer,
+                                        yMaximum integer,
                                         CONSTRAINT singleRowTable CHECK (id));
   -- Direction and skew are separate fields, as this provides more granular control when adjusting the ball's movement
   -- Example: xDirection = 1, xSkew = 1 ---> The ball moves right in increments of 1 cell
   --          xDirection = -1, xSkew = 1 --> The ball moves left in increments of 1 cell
   --          xDirection = -1, xSkew = 2 --> The ball moves left in increments of 2 cells
-  INSERT INTO pong.ball VALUES (TRUE, 5, 6, 2, 1, 1, -1);
+  INSERT INTO pong.ball VALUES (TRUE, 5, 6,  -- X,Y Coordinates
+                                      2, 1,  -- X,Y Skew
+                                      1, -1, -- X,Y Direction
+                                      1, 9,  -- X-axis valid bounds to move in
+                                      2, 10  -- Y-axis valid bounds to move in
+                                );
 
   -- Randomise initial ball skew, otherwise the start of the game becomes fairly predictable
   PERFORM pong.setDirectionalSkewOnBall();
@@ -156,7 +165,7 @@ CREATE OR REPLACE FUNCTION pong.movePlayer(playerToMove integer, actionValue int
   DECLARE screenRowFirst integer;
   DECLARE screenRowFinal integer;
 BEGIN
-  SELECT 2, COUNT(*) - 1 INTO screenRowFirst, screenRowFinal FROM pong.screen;
+  SELECT yMinimum, yMaximum INTO screenRowFirst, screenRowFinal FROM pong.ball;
   -- Keep the player's paddle within the screen height
   SELECT top INTO playerTop FROM pong.players WHERE playernumber = playerToMove;
   SELECT CASE
@@ -240,7 +249,7 @@ CREATE OR REPLACE FUNCTION pong.moveBall() RETURNS integer AS $$
   DECLARE bottom2 integer;
   DECLARE whichPlayerHasScored integer;
 BEGIN
-  SELECT 1, 9, 2, COUNT(*) - 1 INTO screenColumnFirst, screenColumnFinal, screenRowFirst, screenRowFinal FROM pong.screen;
+  SELECT xMinimum, xMaximum, yMinimum, yMaximum INTO screenColumnFirst, screenColumnFinal, screenRowFirst, screenRowFinal FROM pong.ball;
   SELECT top, bottom INTO top1, bottom1 FROM pong.players WHERE playernumber = 1;
   SELECT top, bottom INTO top2, bottom2 FROM pong.players WHERE playernumber = 2;
   SELECT (x + (xDirection * xSkew)), (y + (yDirection * ySkew)) INTO xWithSkewedDirection, yWithSkewedDirection FROM pong.ball;
