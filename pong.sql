@@ -219,7 +219,7 @@ BEGIN
   -- Reflect the ball when it hits the edge of the screen
   SELECT CASE
     WHEN whichPlayerHasScored > 0 THEN pong.calculateNewBallDirection(xDirection)
-    WHEN xNew >= screenColumnFinal OR (xNew = screenColumnFirst AND yNew >= top1 AND yNew <= bottom1) THEN xDirection * -1
+    WHEN xNew <= screenColumnFirst OR xNew >= screenColumnFinal THEN xDirection * -1
 	ELSE xDirection
   END INTO xDirectionNew FROM pong.ball;
   SELECT CASE
