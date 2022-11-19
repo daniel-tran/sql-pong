@@ -280,7 +280,8 @@ BEGIN
 	ELSE xDirection
   END INTO xDirectionNew FROM pong.ball;
   SELECT CASE
-    WHEN whichPlayerHasScored > 0 THEN pong.calculateNewBallDirection(yDirection)
+    -- Remove the check on xNew to provide a more predictable travel path when the ball hits the paddle
+    WHEN (whichPlayerHasScored > 0) OR (xNew <= screenColumnFirst OR xNew >= screenColumnFinal) THEN pong.calculateNewBallDirection(yDirection)
     WHEN yNew <= screenRowFirst OR yNew >= screenRowFinal THEN yDirection * -1
 	ELSE yDirection
   END INTO yDirectionNew FROM pong.ball;
