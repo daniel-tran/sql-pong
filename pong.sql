@@ -348,11 +348,28 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION pong.printScreen() RETURNS TABLE (
+  cell1 text,
+  cell2 text,
+  cell3 text,
+  cell4 text,
+  cell5 text,
+  cell6 text,
+  cell7 text,
+  cell8 text,
+  cell9 text) AS $$
+BEGIN
+  -- ORDER BY is necessary, since UPDATE won't preserve the original row order by default
+  RETURN QUERY
+  SELECT screen.cell1, screen.cell2, screen.cell3, screen.cell4, screen.cell5, screen.cell6, screen.cell7, screen.cell8, screen.cell9
+  FROM pong.screen ORDER BY rowNumber ASC;
+END;
+$$ LANGUAGE plpgsql;
+
 SELECT pong.playGameWithTwoPlayers(0, 0);
 
 -- Set the difficulty for one of the players in 1P mode
 --UPDATE pong.players SET (cpuDifficultyLevel) = (SELECT 1) WHERE playerNumber = 1;
 --SELECT pong.playGameWithOnePlayer(2, 0);
 
--- ORDER BY is necessary, since UPDATE won't preserve the original row order by default
-SELECT * from pong.screen ORDER BY rowNumber ASC;
+SELECT * FROM pong.printScreen();
