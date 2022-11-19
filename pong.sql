@@ -166,6 +166,13 @@ $$ LANGUAGE plpgsql;
 --SELECT pong.movePlayer(2, 1);
 --SELECT * from pong.screen ORDER BY rowNumber ASC;
 
+CREATE OR REPLACE FUNCTION pong.incrementScore(playerWhoScored integer) RETURNS integer AS $$
+BEGIN
+  UPDATE pong.players SET (score) = (SELECT score + 1) WHERE playernumber = playerWhoScored;
+  RETURN 0;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Just a dummy function that should eventually update the ball's location
 CREATE OR REPLACE FUNCTION pong.moveBall() RETURNS integer AS $$
   DECLARE xNew integer;
@@ -197,8 +204,6 @@ BEGIN
 	WHEN xWithSkewedDirection >= screenColumnFinal AND (yWithSkewedDirection < top2 OR yWithSkewedDirection > bottom2) THEN 1
 	ELSE 0
   END INTO whichPlayerHasScored FROM pong.ball;
-  -- Register the score
-  UPDATE pong.players SET (score) = (SELECT score + 1) WHERE playernumber = whichPlayerHasScored;
   
   -- Keep the ball within the boundaries of the screen
   SELECT CASE
@@ -227,7 +232,9 @@ BEGIN
   PERFORM CASE
     WHEN (whichPlayerHasScored > 0) OR (xDirection != xDirectionNew AND pong.shouldAdjustBallSkewOnHit()) THEN pong.setDirectionalSkewOnBall()
   END FROM pong.ball;
-  
+
+  -- Register the score
+  PERFORM pong.incrementScore(whichPlayerHasScored);
   -- Find the row with the ball and blindly remove it from all fields, since Postgres can't access fields by column number
   UPDATE pong.screen SET (cell1, cell2, cell3, cell4, cell5, cell6, cell7, cell8, cell9) = (
       REPLACE(cell1, pong.drawBall(), pong.drawEmptySpace()),
