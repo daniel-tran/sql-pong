@@ -1,55 +1,63 @@
 -- Setup commands
-CREATE SCHEMA IF NOT EXISTS pong;
+CREATE OR REPLACE FUNCTION pong.resetGame(player1CpuDifficulty integer DEFAULT 0, player2CpuDifficulty integer DEFAULT 1) RETURNS integer AS $$
+BEGIN
+  CREATE SCHEMA IF NOT EXISTS pong;
 
-DROP TABLE IF EXISTS pong.screen;
-CREATE TABLE IF NOT EXISTS pong.screen (rowNumber serial PRIMARY KEY,
-                                        cell1 text,
-                                        cell2 text,
-                                        cell3 text,
-                                        cell4 text,
-                                        cell5 text,
-                                        cell6 text,
-                                        cell7 text,
-                                        cell8 text,
-                                        cell9 text);
--- Each cell is 2 characters wide to account for the ball and paddle occupying the same cell on a collision.
--- By keeping the length of each cell consistent at all times, the table output looks more presentable when viewed using psql.
--- The convention is that any paddle cell is aligned to its respective side, and any other cell that has to
--- render a single character is left-aligned.
-INSERT INTO pong.screen VALUES (DEFAULT, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ');
-INSERT INTO pong.screen VALUES (DEFAULT, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ');
-INSERT INTO pong.screen VALUES (DEFAULT, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ');
-INSERT INTO pong.screen VALUES (DEFAULT, '# ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', ' #');
-INSERT INTO pong.screen VALUES (DEFAULT, '# ', '  ', '  ', '  ', '@ ', '  ', '  ', '  ', ' #');
-INSERT INTO pong.screen VALUES (DEFAULT, '# ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', ' #');
-INSERT INTO pong.screen VALUES (DEFAULT, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ');
-INSERT INTO pong.screen VALUES (DEFAULT, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ');
-INSERT INTO pong.screen VALUES (DEFAULT, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ');
+  DROP TABLE IF EXISTS pong.screen;
+  CREATE TABLE IF NOT EXISTS pong.screen (rowNumber serial PRIMARY KEY,
+                                          cell1 text,
+                                          cell2 text,
+                                          cell3 text,
+                                          cell4 text,
+                                          cell5 text,
+                                          cell6 text,
+                                          cell7 text,
+                                          cell8 text,
+                                          cell9 text);
+  -- Each cell is 2 characters wide to account for the ball and paddle occupying the same cell on a collision.
+  -- By keeping the length of each cell consistent at all times, the table output looks more presentable when viewed using psql.
+  -- The convention is that any paddle cell is aligned to its respective side, and any other cell that has to
+  -- render a single character is left-aligned.
+  INSERT INTO pong.screen VALUES (DEFAULT, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ');
+  INSERT INTO pong.screen VALUES (DEFAULT, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ');
+  INSERT INTO pong.screen VALUES (DEFAULT, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ');
+  INSERT INTO pong.screen VALUES (DEFAULT, '# ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', ' #');
+  INSERT INTO pong.screen VALUES (DEFAULT, '# ', '  ', '  ', '  ', '@ ', '  ', '  ', '  ', ' #');
+  INSERT INTO pong.screen VALUES (DEFAULT, '# ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', ' #');
+  INSERT INTO pong.screen VALUES (DEFAULT, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ');
+  INSERT INTO pong.screen VALUES (DEFAULT, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ');
+  INSERT INTO pong.screen VALUES (DEFAULT, '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ', '  ');
 
-DROP TABLE IF EXISTS pong.players;
-CREATE TABLE IF NOT EXISTS pong.players (playerNumber serial PRIMARY KEY,
-                                         top integer,
-                                         bottom integer,
-                                         cpuDifficultyLevel integer,
-                                         score integer);
-INSERT INTO pong.players VALUES (DEFAULT, 4, 6, 1, 0);
-INSERT INTO pong.players VALUES (DEFAULT, 4, 6, 0, 0);
+  DROP TABLE IF EXISTS pong.players;
+  CREATE TABLE IF NOT EXISTS pong.players (playerNumber serial PRIMARY KEY,
+                                           top integer,
+                                           bottom integer,
+                                           cpuDifficultyLevel integer,
+                                           score integer);
+  INSERT INTO pong.players VALUES (DEFAULT, 4, 6, player1CpuDifficulty, 0);
+  INSERT INTO pong.players VALUES (DEFAULT, 4, 6, player2CpuDifficulty, 0);
 
-DROP TABLE IF EXISTS pong.ball;
--- Single row table constraint, see https://stackoverflow.com/a/25393923
-CREATE TABLE IF NOT EXISTS pong.ball (id boolean PRIMARY KEY DEFAULT TRUE,
-                                      x integer,
-                                      y integer,
-                                      xSkew integer,
-                                      ySkew integer,
-                                      xDirection integer,
-                                      yDirection integer,
-                                      CONSTRAINT singleRowTable CHECK (id));
--- Direction and skew are separate fields, as this provides more granular control when adjusting the ball's movement
--- Example: xDirection = 1, xSkew = 1 ---> The ball moves right in increments of 1 cell
---          xDirection = -1, xSkew = 1 --> The ball moves left in increments of 1 cell
---          xDirection = -1, xSkew = 2 --> The ball moves left in increments of 2 cells
-INSERT INTO pong.ball VALUES (TRUE, 5, 5, 2, 1, 1, -1);
+  DROP TABLE IF EXISTS pong.ball;
+  -- Single row table constraint, see https://stackoverflow.com/a/25393923
+  CREATE TABLE IF NOT EXISTS pong.ball (id boolean PRIMARY KEY DEFAULT TRUE,
+                                        x integer,
+                                        y integer,
+                                        xSkew integer,
+                                        ySkew integer,
+                                        xDirection integer,
+                                        yDirection integer,
+                                        CONSTRAINT singleRowTable CHECK (id));
+  -- Direction and skew are separate fields, as this provides more granular control when adjusting the ball's movement
+  -- Example: xDirection = 1, xSkew = 1 ---> The ball moves right in increments of 1 cell
+  --          xDirection = -1, xSkew = 1 --> The ball moves left in increments of 1 cell
+  --          xDirection = -1, xSkew = 2 --> The ball moves left in increments of 2 cells
+  INSERT INTO pong.ball VALUES (TRUE, 5, 5, 2, 1, 1, -1);
+
+  -- Randomise initial ball skew, otherwise the start of the game becomes fairly predictable
+  PERFORM pong.setDirectionalSkewOnBall();
+  RETURN 0;
+END;
+$$ LANGUAGE plpgsql;
 
 ---------------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------------
@@ -117,9 +125,6 @@ BEGIN
   RETURN 0;
 END;
 $$ LANGUAGE plpgsql;
--- Randomise initial ball skew, otherwise the start of the game becomes fairly predictable
-SELECT pong.setDirectionalSkewOnBall();
---SELECT * FROM pong.ball;
 
 -- Just a dummy function that determines the new value for a ball's direction on a given axis of movement
 CREATE OR REPLACE FUNCTION pong.calculateNewBallDirection(directionOriginal integer) RETURNS integer AS $$
@@ -365,6 +370,8 @@ BEGIN
   FROM pong.screen ORDER BY rowNumber ASC;
 END;
 $$ LANGUAGE plpgsql;
+
+SELECT pong.resetGame();
 
 SELECT pong.playGameWithTwoPlayers(0, 0);
 
