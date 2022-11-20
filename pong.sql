@@ -177,14 +177,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-/* Returns a string containing the player's scores */
-CREATE OR REPLACE FUNCTION pong.printScore() RETURNS text AS $$
+/* Prints a console message containing the player's scores */
+CREATE OR REPLACE FUNCTION pong.printScore() RETURNS void AS $$
   DECLARE player1Score integer;
   DECLARE player2Score integer;
 BEGIN
   SELECT score INTO player1Score FROM pong.players WHERE playerNumber = 1;
   SELECT score INTO player2Score FROM pong.players WHERE playerNumber = 2;
-  RETURN FORMAT('P1: %s, P2: %s', player1Score, player2Score);
+  RAISE INFO 'P1: %, P2: %', player1Score, player2Score;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -370,24 +370,23 @@ $$ LANGUAGE plpgsql;
 ---------------------------------------------------------------------------------------
 
 /* Moves the players and the ball in a single function call */
-CREATE OR REPLACE FUNCTION pong.playGameWithTwoPlayers(player1Movement integer, player2Movement integer) RETURNS text AS $$
+CREATE OR REPLACE FUNCTION pong.playGameWithTwoPlayers(player1Movement integer, player2Movement integer) RETURNS void AS $$
 BEGIN
   -- Ball MUST move after the player, otherwise the paddle can't be drawn when hitting the paddle, otherwise the paddle will draw over the ball's cell
   -- This also means players can manage to reach the ball just as it's about to hit the score zone
   PERFORM pong.movePlayer(1, player1Movement);
   PERFORM pong.movePlayer(2, player2Movement);
   PERFORM pong.moveBall();
-  RETURN pong.printScore();
+  PERFORM pong.printScore();
 END;
 $$ LANGUAGE plpgsql;
 
 /* Moves one player with user input, the other player with calculations and the ball in a single function call */
-CREATE OR REPLACE FUNCTION pong.playGameWithOnePlayer(player integer, playerMovement integer) RETURNS text AS $$
+CREATE OR REPLACE FUNCTION pong.playGameWithOnePlayer(player integer, playerMovement integer) RETURNS void AS $$
   DECLARE playerOther integer;
   DECLARE playerMovementOther integer;
   DECLARE ballY integer;
   DECLARE playerOtherDifficultyLevel integer;
-  DECLARE outputValue text;
 BEGIN
   -- Determine who the CPU player is
   SELECT CASE
@@ -407,11 +406,10 @@ BEGIN
     ELSE 0
   END INTO playerMovementOther FROM pong.players WHERE playerNumber = playerOther;
 
-  SELECT CASE
+  PERFORM CASE
     WHEN playerOther = 1 THEN pong.playGameWithTwoPlayers(playerMovementOther, playerMovement)
     ELSE pong.playGameWithTwoPlayers(playerMovement, playerMovementOther)
-  END INTO outputValue;
-  RETURN outputValue;
+  END;
 END;
 $$ LANGUAGE plpgsql;
 
