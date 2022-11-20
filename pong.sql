@@ -3,7 +3,7 @@
 ---------------------------------------------------------------------------------------
 
 /* Restarts the game to its original state */
-CREATE OR REPLACE FUNCTION pong.resetGame(player1CpuDifficulty integer DEFAULT 0, player2CpuDifficulty integer DEFAULT 1) RETURNS integer AS $$
+CREATE OR REPLACE FUNCTION pong.resetGame(player1CpuDifficulty integer DEFAULT 0, player2CpuDifficulty integer DEFAULT 1) RETURNS void AS $$
 BEGIN
   CREATE SCHEMA IF NOT EXISTS pong;
 
@@ -77,15 +77,13 @@ BEGIN
 
   -- Randomise initial ball skew, otherwise the start of the game becomes fairly predictable
   PERFORM pong.setDirectionalSkewOnBall();
-  RETURN 0;
 END;
 $$ LANGUAGE plpgsql;
 
 /* Updates the score for a particular player */
-CREATE OR REPLACE FUNCTION pong.incrementScore(playerWhoScored integer) RETURNS integer AS $$
+CREATE OR REPLACE FUNCTION pong.incrementScore(playerWhoScored integer) RETURNS void AS $$
 BEGIN
   UPDATE pong.players SET (score) = (SELECT score + 1) WHERE playernumber = playerWhoScored;
-  RETURN 0;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -141,7 +139,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 /* Erases the ball from the row that it is currently in */
-CREATE OR REPLACE FUNCTION pong.clearBallFromScreen() RETURNS integer AS $$
+CREATE OR REPLACE FUNCTION pong.clearBallFromScreen() RETURNS void AS $$
   DECLARE rowWithBall integer;
 BEGIN
   SELECT y INTO rowWithBall FROM pong.ball;
@@ -158,7 +156,6 @@ BEGIN
     REPLACE(cell8, pong.drawBall(), pong.drawEmptySpace()),
     REPLACE(cell9, pong.drawBall(), pong.drawEmptySpace())
   ) WHERE rowNumber = rowWithBall;
-  RETURN 0;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -197,7 +194,7 @@ $$ LANGUAGE plpgsql;
 ---------------------------------------------------------------------------------------
 
 /* Updates the skew factor during ball movement */
-CREATE OR REPLACE FUNCTION pong.setDirectionalSkewOnBall() RETURNS integer AS $$
+CREATE OR REPLACE FUNCTION pong.setDirectionalSkewOnBall() RETURNS void AS $$
   DECLARE xSkewNew integer;
   DECLARE ySkewNew integer;
 BEGIN
@@ -212,7 +209,6 @@ BEGIN
   END INTO xSkewNew;
 
   UPDATE pong.ball SET (xSkew, ySkew) = (xSkewNew, ySkewNew);
-  RETURN 0;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -240,7 +236,7 @@ $$ LANGUAGE plpgsql;
 ---------------------------------------------------------------------------------------
 
 /* Updates a player's position by moving them in a particular direction */
-CREATE OR REPLACE FUNCTION pong.movePlayer(playerToMove integer, actionValue integer) RETURNS integer AS $$
+CREATE OR REPLACE FUNCTION pong.movePlayer(playerToMove integer, actionValue integer) RETURNS void AS $$
   DECLARE playerTop integer;
   DECLARE playerTopNew integer;
   DECLARE playerBottom integer;
@@ -279,12 +275,11 @@ BEGIN
   ) WHERE playerToMove = 2 AND pong.screen.rowNumber >= playerTopNew AND pong.screen.rowNumber <= playerBottomNew;
 
   UPDATE pong.players SET (top, bottom) = (playerTopNew, playerBottomNew) WHERE playernumber = playerToMove;
-  RETURN 0;
 END;
 $$ LANGUAGE plpgsql;
 
 /* Updates the ball's location and handles other state changes affected by the ball's position */
-CREATE OR REPLACE FUNCTION pong.moveBall() RETURNS integer AS $$
+CREATE OR REPLACE FUNCTION pong.moveBall() RETURNS void AS $$
   DECLARE xNew integer;
   DECLARE yNew integer;
   DECLARE xDirectionNew integer;
@@ -368,7 +363,6 @@ BEGIN
   ) WHERE rowNumber = yNew;
 
   UPDATE pong.ball SET (x, y, xDirection, yDirection) = (xNew, yNew, xDirectionNew, yDirectionNew);
-  RETURN 0;
 END;
 $$ LANGUAGE plpgsql;
 
