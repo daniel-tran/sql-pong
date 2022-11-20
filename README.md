@@ -38,6 +38,7 @@ psql.exe --dbname=<database name> --port=<PostgreSQL port provided during instal
 ```
 
 Note that you may get some NOTICE level messages about certain tables not existing - These can be safely ignored at this stage.
+
 6. Once you get an initial output of the game screen, the installation of SQL Pong is deemed successful.
 
 # How to play (using pgAdmin)
