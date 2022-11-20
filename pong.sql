@@ -1,4 +1,7 @@
--- Setup commands
+---------------------------------------------------------------------------------------
+-- Core game state functions
+---------------------------------------------------------------------------------------
+
 CREATE OR REPLACE FUNCTION pong.resetGame(player1CpuDifficulty integer DEFAULT 0, player2CpuDifficulty integer DEFAULT 1) RETURNS integer AS $$
 BEGIN
   CREATE SCHEMA IF NOT EXISTS pong;
@@ -70,8 +73,15 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION pong.incrementScore(playerWhoScored integer) RETURNS integer AS $$
+BEGIN
+  UPDATE pong.players SET (score) = (SELECT score + 1) WHERE playernumber = playerWhoScored;
+  RETURN 0;
+END;
+$$ LANGUAGE plpgsql;
+
 ---------------------------------------------------------------------------------------
----------------------------------------------------------------------------------------
+-- Drawing and console output functions
 ---------------------------------------------------------------------------------------
 
 CREATE OR REPLACE FUNCTION pong.drawPaddle(playerNumber integer, collidesWithBall boolean) RETURNS text AS $$
@@ -117,6 +127,59 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION pong.clearBallFromScreen() RETURNS integer AS $$
+  DECLARE rowWithBall integer;
+BEGIN
+  SELECT y INTO rowWithBall FROM pong.ball;
+  -- Find the row with the ball and blindly remove it from all fields, since Postgres can't access fields by column number
+  -- Only one row needs to be updated, on the assumption that there is only ever one ball on the screen
+  UPDATE pong.screen SET (cell1, cell2, cell3, cell4, cell5, cell6, cell7, cell8, cell9) = (
+    REPLACE(cell1, pong.drawBall(), pong.drawEmptySpace()),
+    REPLACE(cell2, pong.drawBall(), pong.drawEmptySpace()),
+    REPLACE(cell3, pong.drawBall(), pong.drawEmptySpace()),
+    REPLACE(cell4, pong.drawBall(), pong.drawEmptySpace()),
+    REPLACE(cell5, pong.drawBall(), pong.drawEmptySpace()),
+    REPLACE(cell6, pong.drawBall(), pong.drawEmptySpace()),
+    REPLACE(cell7, pong.drawBall(), pong.drawEmptySpace()),
+    REPLACE(cell8, pong.drawBall(), pong.drawEmptySpace()),
+    REPLACE(cell9, pong.drawBall(), pong.drawEmptySpace())
+  ) WHERE rowNumber = rowWithBall;
+  RETURN 0;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION pong.printScreen() RETURNS TABLE (
+  cell1 text,
+  cell2 text,
+  cell3 text,
+  cell4 text,
+  cell5 text,
+  cell6 text,
+  cell7 text,
+  cell8 text,
+  cell9 text) AS $$
+BEGIN
+  -- ORDER BY is necessary, since UPDATE won't preserve the original row order by default
+  RETURN QUERY
+  SELECT screen.cell1, screen.cell2, screen.cell3, screen.cell4, screen.cell5, screen.cell6, screen.cell7, screen.cell8, screen.cell9
+  FROM pong.screen ORDER BY rowNumber ASC;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION pong.printScore() RETURNS text AS $$
+  DECLARE player1Score integer;
+  DECLARE player2Score integer;
+BEGIN
+  SELECT score INTO player1Score FROM pong.players WHERE playerNumber = 1;
+  SELECT score INTO player2Score FROM pong.players WHERE playerNumber = 2;
+  RETURN FORMAT('P1: %s, P2: %s', player1Score, player2Score);
+END;
+$$ LANGUAGE plpgsql;
+
+---------------------------------------------------------------------------------------
+-- Ball movement adjustment functions
+---------------------------------------------------------------------------------------
+
 -- Just a dummy function that should control the skew factor during ball movement
 CREATE OR REPLACE FUNCTION pong.setDirectionalSkewOnBall() RETURNS integer AS $$
   DECLARE xSkewNew integer;
@@ -155,6 +218,10 @@ BEGIN
   RETURN FLOOR(RANDOM() * 2) <= 0.9;
 END;
 $$ LANGUAGE plpgsql;
+
+---------------------------------------------------------------------------------------
+-- Movement functions
+---------------------------------------------------------------------------------------
 
 -- Just a dummy function that should eventually update the player's location
 CREATE OR REPLACE FUNCTION pong.movePlayer(playerToMove integer, actionValue integer) RETURNS integer AS $$
@@ -196,37 +263,6 @@ BEGIN
   ) WHERE playerToMove = 2 AND pong.screen.rowNumber >= playerTopNew AND pong.screen.rowNumber <= playerBottomNew;
 
   UPDATE pong.players SET (top, bottom) = (playerTopNew, playerBottomNew) WHERE playernumber = playerToMove;
-  RETURN 0;
-END;
-$$ LANGUAGE plpgsql;
---SELECT pong.movePlayer(1, -1);
---SELECT pong.movePlayer(2, 1);
---SELECT * from pong.screen ORDER BY rowNumber ASC;
-
-CREATE OR REPLACE FUNCTION pong.incrementScore(playerWhoScored integer) RETURNS integer AS $$
-BEGIN
-  UPDATE pong.players SET (score) = (SELECT score + 1) WHERE playernumber = playerWhoScored;
-  RETURN 0;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE OR REPLACE FUNCTION pong.clearBallFromScreen() RETURNS integer AS $$
-  DECLARE rowWithBall integer;
-BEGIN
-  SELECT y INTO rowWithBall FROM pong.ball;
-  -- Find the row with the ball and blindly remove it from all fields, since Postgres can't access fields by column number
-  -- Only one row needs to be updated, on the assumption that there is only ever one ball on the screen
-  UPDATE pong.screen SET (cell1, cell2, cell3, cell4, cell5, cell6, cell7, cell8, cell9) = (
-    REPLACE(cell1, pong.drawBall(), pong.drawEmptySpace()),
-    REPLACE(cell2, pong.drawBall(), pong.drawEmptySpace()),
-    REPLACE(cell3, pong.drawBall(), pong.drawEmptySpace()),
-    REPLACE(cell4, pong.drawBall(), pong.drawEmptySpace()),
-    REPLACE(cell5, pong.drawBall(), pong.drawEmptySpace()),
-    REPLACE(cell6, pong.drawBall(), pong.drawEmptySpace()),
-    REPLACE(cell7, pong.drawBall(), pong.drawEmptySpace()),
-    REPLACE(cell8, pong.drawBall(), pong.drawEmptySpace()),
-    REPLACE(cell9, pong.drawBall(), pong.drawEmptySpace())
-  ) WHERE rowNumber = rowWithBall;
   RETURN 0;
 END;
 $$ LANGUAGE plpgsql;
@@ -320,15 +356,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION pong.printScore() RETURNS text AS $$
-  DECLARE player1Score integer;
-  DECLARE player2Score integer;
-BEGIN
-  SELECT score INTO player1Score FROM pong.players WHERE playerNumber = 1;
-  SELECT score INTO player2Score FROM pong.players WHERE playerNumber = 2;
-  RETURN FORMAT('P1: %s, P2: %s', player1Score, player2Score);
-END;
-$$ LANGUAGE plpgsql;
+---------------------------------------------------------------------------------------
+-- Game playing functions
+---------------------------------------------------------------------------------------
 
 -- Just a dummy function that moves the players and the ball in a single function call
 CREATE OR REPLACE FUNCTION pong.playGameWithTwoPlayers(player1Movement integer, player2Movement integer) RETURNS text AS $$
@@ -376,30 +406,20 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION pong.printScreen() RETURNS TABLE (
-  cell1 text,
-  cell2 text,
-  cell3 text,
-  cell4 text,
-  cell5 text,
-  cell6 text,
-  cell7 text,
-  cell8 text,
-  cell9 text) AS $$
-BEGIN
-  -- ORDER BY is necessary, since UPDATE won't preserve the original row order by default
-  RETURN QUERY
-  SELECT screen.cell1, screen.cell2, screen.cell3, screen.cell4, screen.cell5, screen.cell6, screen.cell7, screen.cell8, screen.cell9
-  FROM pong.screen ORDER BY rowNumber ASC;
-END;
-$$ LANGUAGE plpgsql;
+---------------------------------------------------------------------------------------
+-- General setup to start a new game
+---------------------------------------------------------------------------------------
 
 SELECT pong.resetGame();
-
-SELECT pong.playGameWithTwoPlayers(0, 0);
+SELECT * FROM pong.printScreen();
 
 -- Set the difficulty for one of the players in 1P mode
 --UPDATE pong.players SET (cpuDifficultyLevel) = (SELECT 1) WHERE playerNumber = 1;
---SELECT pong.playGameWithOnePlayer(2, 0);
 
-SELECT * FROM pong.printScreen();
+-- Play with 2 players
+--SELECT pong.playGameWithTwoPlayers(0, 0);
+--SELECT * FROM pong.printScreen();
+
+-- Play with 1 player
+--SELECT pong.playGameWithOnePlayer(1, 0);
+--SELECT * FROM pong.printScreen();
