@@ -2,9 +2,17 @@
 -- Core game state functions
 ---------------------------------------------------------------------------------------
 
+/* Restarts the game to its original state */
 CREATE OR REPLACE FUNCTION pong.resetGame(player1CpuDifficulty integer DEFAULT 0, player2CpuDifficulty integer DEFAULT 1) RETURNS integer AS $$
 BEGIN
   CREATE SCHEMA IF NOT EXISTS pong;
+
+  -- Any movement related values follow this convention:
+  -- For the X axis, a negative number goes to the left and a positive number goes to the right. 0 indicates no movement on this axis.
+  -- For the Y axis, a negative number goes up and a positive number goes down. 0 indicates no movement on this axis.
+
+  -- CPU difficulty follows the convention that the higher the number, the "smarter" the CPU player is.
+  -- The base difficulty starts at 0.
 
   DROP TABLE IF EXISTS pong.screen;
   CREATE TABLE IF NOT EXISTS pong.screen (rowNumber serial PRIMARY KEY,
@@ -73,6 +81,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+/* Updates the score for a particular player */
 CREATE OR REPLACE FUNCTION pong.incrementScore(playerWhoScored integer) RETURNS integer AS $$
 BEGIN
   UPDATE pong.players SET (score) = (SELECT score + 1) WHERE playernumber = playerWhoScored;
@@ -84,6 +93,7 @@ $$ LANGUAGE plpgsql;
 -- Drawing and console output functions
 ---------------------------------------------------------------------------------------
 
+/* Returns the paddle character for a particular player */
 CREATE OR REPLACE FUNCTION pong.drawPaddle(playerNumber integer, collidesWithBall boolean) RETURNS text AS $$
   DECLARE paddleCharacter text;
 BEGIN
@@ -104,18 +114,21 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+/* Returns the empty space character */
 CREATE OR REPLACE FUNCTION pong.drawEmptySpace() RETURNS text AS $$
 BEGIN
   RETURN '  ';
 END;
 $$ LANGUAGE plpgsql;
 
+/* Returns the ball character */
 CREATE OR REPLACE FUNCTION pong.drawBall() RETURNS text AS $$
 BEGIN
   RETURN '@ ';
 END;
 $$ LANGUAGE plpgsql;
 
+/* Returns either the ball or empty space characters based on a boolean value */
 CREATE OR REPLACE FUNCTION pong.drawBallOrEmptySpace(isBall boolean) RETURNS text AS $$
   DECLARE cellCharacter text;
 BEGIN
@@ -127,6 +140,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+/* Erases the ball from the row that it is currently in */
 CREATE OR REPLACE FUNCTION pong.clearBallFromScreen() RETURNS integer AS $$
   DECLARE rowWithBall integer;
 BEGIN
@@ -148,6 +162,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+/* Returns all the cells of the screen */
 CREATE OR REPLACE FUNCTION pong.printScreen() RETURNS TABLE (
   cell1 text,
   cell2 text,
@@ -166,6 +181,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+/* Returns a string containing the player's scores */
 CREATE OR REPLACE FUNCTION pong.printScore() RETURNS text AS $$
   DECLARE player1Score integer;
   DECLARE player2Score integer;
@@ -180,7 +196,7 @@ $$ LANGUAGE plpgsql;
 -- Ball movement adjustment functions
 ---------------------------------------------------------------------------------------
 
--- Just a dummy function that should control the skew factor during ball movement
+/* Updates the skew factor during ball movement */
 CREATE OR REPLACE FUNCTION pong.setDirectionalSkewOnBall() RETURNS integer AS $$
   DECLARE xSkewNew integer;
   DECLARE ySkewNew integer;
@@ -200,7 +216,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Just a dummy function that determines the new value for a ball's direction on a given axis of movement
+/* Returns the new value for a ball's direction on a given axis of movement */
 CREATE OR REPLACE FUNCTION pong.calculateNewBallDirection(directionOriginal integer) RETURNS integer AS $$
   DECLARE directionNew integer;
 BEGIN
@@ -212,7 +228,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Just a dummy function that should decide whether the ball's movement changes on hit
+/* Returns a randomised boolean value that indicates whether the ball's movement changes on hit */
 CREATE OR REPLACE FUNCTION pong.shouldAdjustBallSkewOnHit() RETURNS boolean AS $$
 BEGIN
   RETURN FLOOR(RANDOM() * 2) <= 0.9;
@@ -223,7 +239,7 @@ $$ LANGUAGE plpgsql;
 -- Movement functions
 ---------------------------------------------------------------------------------------
 
--- Just a dummy function that should eventually update the player's location
+/* Updates a player's position by moving them in a particular direction */
 CREATE OR REPLACE FUNCTION pong.movePlayer(playerToMove integer, actionValue integer) RETURNS integer AS $$
   DECLARE playerTop integer;
   DECLARE playerTopNew integer;
@@ -267,7 +283,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Just a dummy function that should eventually update the ball's location
+/* Updates the ball's location and handles other state changes affected by the ball's position */
 CREATE OR REPLACE FUNCTION pong.moveBall() RETURNS integer AS $$
   DECLARE xNew integer;
   DECLARE yNew integer;
@@ -360,7 +376,7 @@ $$ LANGUAGE plpgsql;
 -- Game playing functions
 ---------------------------------------------------------------------------------------
 
--- Just a dummy function that moves the players and the ball in a single function call
+/* Moves the players and the ball in a single function call */
 CREATE OR REPLACE FUNCTION pong.playGameWithTwoPlayers(player1Movement integer, player2Movement integer) RETURNS text AS $$
 BEGIN
   -- Ball MUST move after the player, otherwise the paddle can't be drawn when hitting the paddle, otherwise the paddle will draw over the ball's cell
@@ -372,7 +388,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Just a dummy function that moves one player with user input, the other with calculations and the ball in a single function call
+/* Moves one player with user input, the other player with calculations and the ball in a single function call */
 CREATE OR REPLACE FUNCTION pong.playGameWithOnePlayer(player integer, playerMovement integer) RETURNS text AS $$
   DECLARE playerOther integer;
   DECLARE playerMovementOther integer;
