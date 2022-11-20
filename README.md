@@ -42,7 +42,7 @@ Note that you may get some NOTICE level messages about certain tables not existi
 
 # How to play (using pgAdmin)
 
-This game as been confirmed to be working using pgAdmin 4 version 6.14, though a later version should work as well.
+This game as been confirmed to be working using **pgAdmin 4 version 6.14**, though a later version should work as well.
 
 ## 2P Mode
 
@@ -76,7 +76,7 @@ Modify the second function parameter to move the right side player accordingly.
 
 # How to play (using psql.exe)
 
-This game as been confirmed to be working using psql version 15.0, though a later version should work as well.
+This game as been confirmed to be working using **psql version 15.0**, though a later version should work as well.
 
 Users choosing the play using psql.exe should have either set up the [PGPASSWORD](https://www.postgresql.org/docs/current/libpq-envars.html) or [PGPASSFILE](https://www.postgresql.org/docs/current/libpq-pgpass.html) environment variables to source login credentials.
 The commands are mostly the same as the ones used for pgAdmin, except these are run directly from the command line and are expected to be run in the following format, replacing the relevant items in angle brackets accordingly:
