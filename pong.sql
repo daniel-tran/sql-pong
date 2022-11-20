@@ -320,19 +320,25 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Just a dummy function that moves the players and the ball in a single function call
-CREATE OR REPLACE FUNCTION pong.playGameWithTwoPlayers(player1Movement integer, player2Movement integer) RETURNS text AS $$
+CREATE OR REPLACE FUNCTION pong.printScore() RETURNS text AS $$
   DECLARE player1Score integer;
   DECLARE player2Score integer;
+BEGIN
+  SELECT score INTO player1Score FROM pong.players WHERE playerNumber = 1;
+  SELECT score INTO player2Score FROM pong.players WHERE playerNumber = 2;
+  RETURN FORMAT('P1: %s, P2: %s', player1Score, player2Score);
+END;
+$$ LANGUAGE plpgsql;
+
+-- Just a dummy function that moves the players and the ball in a single function call
+CREATE OR REPLACE FUNCTION pong.playGameWithTwoPlayers(player1Movement integer, player2Movement integer) RETURNS text AS $$
 BEGIN
   -- Ball MUST move after the player, otherwise the paddle can't be drawn when hitting the paddle, otherwise the paddle will draw over the ball's cell
   -- This also means players can manage to reach the ball just as it's about to hit the score zone
   PERFORM pong.movePlayer(1, player1Movement);
   PERFORM pong.movePlayer(2, player2Movement);
   PERFORM pong.moveBall();
-  SELECT score INTO player1Score FROM pong.players WHERE playerNumber = 1;
-  SELECT score INTO player2Score FROM pong.players WHERE playerNumber = 2;
-  RETURN FORMAT('P1: %s, P2: %s', player1Score, player2Score);
+  RETURN pong.printScore();
 END;
 $$ LANGUAGE plpgsql;
 
