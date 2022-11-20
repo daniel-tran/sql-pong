@@ -1,12 +1,11 @@
 ---------------------------------------------------------------------------------------
 -- Core game state functions
 ---------------------------------------------------------------------------------------
+CREATE SCHEMA IF NOT EXISTS pong;
 
 /* Restarts the game to its original state */
 CREATE OR REPLACE FUNCTION pong.resetGame(player1CpuDifficulty integer DEFAULT 0, player2CpuDifficulty integer DEFAULT 1) RETURNS void AS $$
 BEGIN
-  CREATE SCHEMA IF NOT EXISTS pong;
-
   -- Any movement related values follow this convention:
   -- For the X axis, a negative number goes to the left and a positive number goes to the right. 0 indicates no movement on this axis.
   -- For the Y axis, a negative number goes up and a positive number goes down. 0 indicates no movement on this axis.
