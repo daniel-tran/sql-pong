@@ -109,21 +109,21 @@ BEGIN
   END INTO paddleCharacter;
   RETURN paddleCharacter;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql IMMUTABLE STRICT;
 
 /* Returns the empty space character */
 CREATE OR REPLACE FUNCTION pong.drawEmptySpace() RETURNS text AS $$
 BEGIN
   RETURN '  ';
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql IMMUTABLE STRICT;
 
 /* Returns the ball character */
 CREATE OR REPLACE FUNCTION pong.drawBall() RETURNS text AS $$
 BEGIN
   RETURN '@ ';
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql IMMUTABLE STRICT;
 
 /* Returns either the ball or empty space characters based on a boolean value */
 CREATE OR REPLACE FUNCTION pong.drawBallOrEmptySpace(isBall boolean) RETURNS text AS $$
@@ -135,7 +135,7 @@ BEGIN
   END INTO cellCharacter;
   RETURN cellCharacter;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql IMMUTABLE STRICT;
 
 /* Erases the ball from the row that it is currently in */
 CREATE OR REPLACE FUNCTION pong.clearBallFromScreen() RETURNS void AS $$
@@ -175,7 +175,7 @@ BEGIN
   SELECT screen.cell1, screen.cell2, screen.cell3, screen.cell4, screen.cell5, screen.cell6, screen.cell7, screen.cell8, screen.cell9
   FROM pong.screen ORDER BY rowNumber ASC;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql STABLE STRICT;
 
 /* Prints a console message containing the player's scores */
 CREATE OR REPLACE FUNCTION pong.printScore() RETURNS void AS $$
@@ -186,7 +186,7 @@ BEGIN
   SELECT score INTO player2Score FROM pong.players WHERE playerNumber = 2;
   RAISE INFO 'P1: %, P2: %', player1Score, player2Score;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql STABLE STRICT;
 
 ---------------------------------------------------------------------------------------
 -- Ball movement adjustment functions
