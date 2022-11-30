@@ -122,7 +122,7 @@ You can also pass in up to two optional parameters to adjust the CPU difficulty 
 
 This game as been confirmed to be working using **pgAdmin 4 version 6.14**, though a later version should work as well.
 
-After providing the master password and the login credentials for the password where the "pong" schema has been deployed, open the Query Tool and run the relevant SQL commands shown above.
+After providing the master password and the login credentials for the database where the "pong" schema has been deployed, open the Query Tool and run the relevant SQL commands shown above.
 
 # How to play (using psql.exe)
 
